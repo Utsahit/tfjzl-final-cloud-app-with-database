@@ -111,6 +111,47 @@ def enroll(request, course_id):
          # Add each selected choice object to the submission object
          # Redirect to show_exam_result with the submission id
 #def submit(request, course_id):
+def submit(request, course_id):
+    course = get_object_or_404(Course, pk=course_id)
+    user = request.user
+    enrollment = Enrollment.objects.get(user=user, course=course)
+    submission = Submission.objects.create(enrollment=enrollment)
+    
+    selected_choices = []
+    for key, value in request.POST.items():
+        if key.startswith('choice_'):
+            selected_choices.append(int(value))
+            
+    for choice_id in selected_choices:
+        choice = Choice.objects.get(pk=choice_id)
+        submission.choices.add(choice)
+        
+    submission.save()
+    return redirect('onlinecourse:show_exam_result', course_id=course.id, submission_id=submission.id)
+
+
+def show_exam_result(request, course_id, submission_id):
+    context = {}
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+    
+    selected_choices = submission.choices.all()
+    selected_ids = [c.id for c in selected_choices]
+    
+    total_score = 0
+    possible_score = 0
+    
+    for question in course.question_set.all():
+        possible_score += question.grade
+        if question.is_get_score(selected_ids):
+            total_score += question.grade
+            
+    context['course'] = course
+    context['grade'] = total_score
+    context['possible'] = possible_score
+    context['selected_ids'] = selected_ids
+    context['submission'] = submission
+    return render(request, 'onlinecourse/exam_result.html', context)
 
 
 # An example method to collect the selected choices from the exam form from the request object
@@ -131,6 +172,7 @@ def extract_answers(request):
         # For each selected choice, check if it is a correct answer or not
         # Calculate the total score
 #def show_exam_result(request, course_id, submission_id):
+
 
 
 
